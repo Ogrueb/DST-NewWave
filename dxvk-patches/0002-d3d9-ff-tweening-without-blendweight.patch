@@ -1,0 +1,17 @@
+diff --git a/src/d3d9/d3d9_device.cpp b/src/d3d9/d3d9_device.cpp
+index 9b72bb2..15e18d5 100644
+--- a/src/d3d9/d3d9_device.cpp
++++ b/src/d3d9/d3d9_device.cpp
+@@ -8120,7 +8124,11 @@ namespace dxvk {
+         ? D3D9FF_VertexBlendMode_Tween
+         : D3D9FF_VertexBlendMode_Normal;
+ 
+-      if (m_state.renderStates[D3DRS_VERTEXBLEND] != D3DVBF_0WEIGHTS) {
++      if (vertexBlendMode == D3D9FF_VertexBlendMode_Tween) {
++        // Tweening blends POSITION0/NORMAL0 with POSITION1/NORMAL1 by D3DRS_TWEENFACTOR.
++        // It uses no blend weights, so a declaration without them must not disable it.
++      }
++      else if (m_state.renderStates[D3DRS_VERTEXBLEND] != D3DVBF_0WEIGHTS) {
+         if (!hasBlendWeight)
+           vertexBlendMode = D3D9FF_VertexBlendMode_Disabled;
+       }

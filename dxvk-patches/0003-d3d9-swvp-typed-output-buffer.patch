@@ -1,0 +1,89 @@
+diff --git a/src/d3d9/d3d9_device.cpp b/src/d3d9/d3d9_device.cpp
+index 9b72bb2..15e18d5 100644
+--- a/src/d3d9/d3d9_device.cpp
++++ b/src/d3d9/d3d9_device.cpp
+@@ -3346,7 +3346,11 @@ namespace dxvk {
+       // In order to avoid view bloat, create a format-less view for
+       // the entire buffer and pass the offset in via a push constant.
+       DxvkBufferViewKey viewKey;
+-      viewKey.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
++      // The shader compiler turns the structured output into a typed buffer when the
++      // device's storage buffer alignment is above 4 (lavapipe, some others), so give the
++      // view an R32_UINT format too; it still provides the raw descriptor otherwise.
++      viewKey.format = VK_FORMAT_R32_UINT;
++      viewKey.usage = VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
+       viewKey.offset = cBufferSlice.offset();
+       viewKey.size = cBufferSlice.length();
+ 
+diff --git a/src/d3d9/d3d9_common_buffer.cpp b/src/d3d9/d3d9_common_buffer.cpp
+index 36690eb..14cc227 100644
+--- a/src/d3d9/d3d9_common_buffer.cpp
++++ b/src/d3d9/d3d9_common_buffer.cpp
+@@ -109,7 +109,9 @@ namespace dxvk {
+       info.access |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+ 
+       if (m_parent->SupportsSWVP()) {
+-        info.usage  |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
++        // ProcessVertices output: the emulation shader writes it as a raw (SSBO) or, on
++        // devices with minStorageBufferOffsetAlignment > 4, as a typed R32_UINT buffer
++        info.usage  |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
+         info.stages |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+         info.access |= VK_ACCESS_SHADER_WRITE_BIT;
+       }
+diff --git a/src/d3d9/d3d9_swvp_emu.cpp b/src/d3d9/d3d9_swvp_emu.cpp
+index 6280d02..3573cf7 100644
+--- a/src/d3d9/d3d9_swvp_emu.cpp
++++ b/src/d3d9/d3d9_swvp_emu.cpp
+@@ -210,10 +210,12 @@ namespace dxvk {
+         case D3DDECLTYPE_FLOAT4:
+           return ir::BasicType(ir::ScalarType::eF32, 4u);
+ 
++        // Four bytes packed into one uint32 by hand: a u8vec4 member is not stored
++        // correctly once the buffer is lowered to a typed R32 buffer
+         case D3DDECLTYPE_D3DCOLOR:
+         case D3DDECLTYPE_UBYTE4:
+         case D3DDECLTYPE_UBYTE4N:
+-          return ir::BasicType(ir::ScalarType::eU8, 4u);
++          return ir::BasicType(ir::ScalarType::eU32, 1u);
+ 
+         case D3DDECLTYPE_SHORT2:
+         case D3DDECLTYPE_SHORT2N:
+@@ -328,12 +330,12 @@ namespace dxvk {
+             builder.makeConstant(0.0f), builder.makeConstant(1.0f)));
+           value = builder.add(ir::Op::FMul(ir::ScalarType::eF32, value,
+             builder.makeConstant(255.0f)));
+-          return builder.add(ir::Op::ConvertFtoI(ir::ScalarType::eU8, value));
++          return builder.add(ir::Op::ConvertFtoI(ir::ScalarType::eU32, value));
+ 
+         case D3DDECLTYPE_UBYTE4:
+           value = builder.add(ir::Op::FClamp(ir::ScalarType::eF32, value,
+             builder.makeConstant(0.0f), builder.makeConstant(255.0f)));
+-          return builder.add(ir::Op::ConvertFtoI(ir::ScalarType::eU8, value));
++          return builder.add(ir::Op::ConvertFtoI(ir::ScalarType::eU32, value));
+ 
+         case D3DDECLTYPE_SHORT2N:
+         case D3DDECLTYPE_SHORT4N:
+@@ -389,10 +391,19 @@ namespace dxvk {
+       using namespace dxbc_spv;
+ 
+       switch (D3DDECLTYPE(element.Type)) {
+-        // Build vec4, but flip color components
+-        case D3DDECLTYPE_D3DCOLOR: {
+-          return builder.add(ir::Op::CompositeConstruct(type,
+-            values[2u], values[1u], values[0u], values[3u]));
++        // Pack four bytes into one uint32; D3DCOLOR is stored as B, G, R, A
++        case D3DDECLTYPE_D3DCOLOR:
++        case D3DDECLTYPE_UBYTE4:
++        case D3DDECLTYPE_UBYTE4N: {
++          bool bgra = D3DDECLTYPE(element.Type) == D3DDECLTYPE_D3DCOLOR;
++          auto result = values[bgra ? 2u : 0u];
++          result = builder.add(ir::Op::IBitInsert(ir::ScalarType::eU32, result,
++            values[1u], builder.makeConstant(8u), builder.makeConstant(8u)));
++          result = builder.add(ir::Op::IBitInsert(ir::ScalarType::eU32, result,
++            values[bgra ? 0u : 2u], builder.makeConstant(16u), builder.makeConstant(8u)));
++          result = builder.add(ir::Op::IBitInsert(ir::ScalarType::eU32, result,
++            values[3u], builder.makeConstant(24u), builder.makeConstant(8u)));
++          return result;
+         }
+ 
+         // Pack stuff into single uint32
