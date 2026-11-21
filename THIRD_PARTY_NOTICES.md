@@ -1,8 +1,5 @@
 # Third-party software in DST NewWave
 
-<!-- DRAFT. The installed notices are installer/NOTICE.txt (Windows) and installer/NOTICE_LINUX.txt
-     (Linux); this file merges them for the public repository. Keep the three in step. -->
-
 DST NewWave includes the software below. Each part keeps its own licence; the full licence texts are
 installed with the game (Windows: the `licences` folder; Linux: beside the program and in the
 AppImage's `usr/share/doc`).
@@ -50,3 +47,6 @@ DXVK is built from its `v3.1.1` tag with two small patches, published in this re
   when the vertex declaration has no blend weight (animated models).
 - `0003-d3d9-swvp-typed-output-buffer.patch`: the `ProcessVertices` output buffer on drivers that
   use a typed buffer view (Nvidia, Intel, lavapipe).
+
+The numbers continue the project's own series; patch 0001 was only for a 32-bit Linux build and is
+not used in any release.

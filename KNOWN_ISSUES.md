@@ -1,7 +1,5 @@
 # Known issues
 
-<!-- DRAFT. Keep in step with docs/ROADMAP.md in the private repository before each release. -->
-
 ## Tested on one PC only
 
 DST NewWave has been played on one computer: Windows 11 with AMD integrated graphics. Everything

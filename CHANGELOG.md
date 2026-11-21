@@ -1,8 +1,5 @@
 # Changelog
 
-<!-- DRAFT. Player-facing. The first public release is described against the original 2003 game,
-     since no earlier version was public. Versions before 1.0 were private play-test builds. -->
-
 ## 1.0
 
 First public release. Compared with the original game:

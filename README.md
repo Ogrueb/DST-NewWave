@@ -11,8 +11,6 @@ publishers. Deep Sea Tycoon and its content belong to their rights holders.
 
 ![An underwater city in the mission Atlantean Raiders!, at 1920 x 1080](screenshots/city.jpg)
 
-<!-- More screenshots can go here: title screen, the options window. -->
-
 ## Features
 
 - **Runs on modern Windows.** A 64-bit build that draws through DXVK (Direct3D on Vulkan), and a
